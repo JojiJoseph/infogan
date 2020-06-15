@@ -26,15 +26,37 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    pass
+    def __init__(self):
+        super(Discriminator, self).__init__()
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(1, 64, kernel_size=4, stride=2),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(64, 128, kernel_size=4, stride=2),
+            nn.LeakyReLU(inplace=True),
+            nn.BatchNorm2d(128),
+        )
+        self.fc = nn.Sequential(nn.Linear(128*5*5, 1024), nn.LeakyReLU(), nn.BatchNorm1d(1))
+        self.d_layer = nn.Linear(1024, 1)
+        self.q_discrete_layer = nn.Linear(1024, 10)
+        self.q_continues_layer = nn.Sequential(nn.Linear(1024, 2), nn.LeakyReLU(), nn.BatchNorm1d(1)) 
+    def forward(self, x):
+        y = self.conv_layers(x)
+        y = y.view(x.shape[0], 1, -1)
+        y = self.fc(y)
+        cat = torch.softmax(self.q_discrete_layer(y), dim=2),
+        code = self.q_continues_layer(y)
+        valid = torch.sigmoid(self.d_layer)
+        return valid, cat, code
 
 if __name__ == "__main__":
     g = Generator()
+    d = Discriminator()
 
     x = torch.ones(1, 1, 74)
     print(x.shape)
     y = g(x)
-
+    out = d(y)
+    print(out)
     import matplotlib.pyplot as plt
     plt.imshow(y[0].permute(1,2,0).squeeze().detach().numpy(), cmap="gray")
     plt.show()
