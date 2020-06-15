@@ -1,0 +1,21 @@
+.toast-container {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  z-index: 100;
+}
+
+#toast-message {
+  padding: 10px;
+  background-color: white;
+  color: red;
+  font-size: 20px;
+  border: 1px solid #EAEAEA;
+  border-radius: 5px;
+}
+
+.hidden-toast {
+  opacity: 0;
+  transition: opacity 1s;
+}

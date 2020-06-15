@@ -1,0 +1,46 @@
+/* MODAL */
+.modal-backdrop {
+  background-color: rgba(0,0,0,0.2);
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  width: 100vw;
+  height: 100vh;
+  text-align: center;
+}
+#modal-dialog {
+  background-color: white;
+  display: inline-block;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 20px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  min-width: 200px;
+  text-align: center;
+}
+
+.modal-title, .modal-controls {
+  background-color: white;
+  padding: 15px;
+  font-size: 20px;
+}
+
+.modal-title {
+  font-weight: bold;
+  font-size: 25px;
+}
+
+.modal-content {
+  background-color: #EAEAEA;
+  padding: 1px;
+  border-bottom: 1px solid #AAA;
+  border-top: 1px solid #AAA;
+}
+
+.hidden {
+  display: none;
+}

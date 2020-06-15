@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class Generator(nn.Module):
     def __init__(self):
@@ -43,9 +44,9 @@ class Discriminator(nn.Module):
         y = self.conv_layers(x)
         y = y.view(x.shape[0], 1, -1)
         y = self.fc(y)
-        cat = torch.softmax(self.q_discrete_layer(y), dim=2),
+        cat = self.q_discrete_layer(y)
         code = self.q_continues_layer(y)
-        valid = torch.sigmoid(self.d_layer)
+        valid = F.sigmoid(self.d_layer(y))
         return valid, cat, code
 
 if __name__ == "__main__":
