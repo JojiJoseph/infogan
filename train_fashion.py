@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torchvision.datasets import MNIST
+from torchvision.datasets import FashionMNIST
 from torchvision.transforms import ToTensor, Resize, Normalize, Compose
 from torch.utils.data import DataLoader
 from torch.optim import Adam
@@ -23,13 +23,13 @@ starting_epoch  = 0
 losses = []
 epoch_timings = []
 
-if os.path.exists(os.path.join(dname, './checkpoint_mnist.pt')):
-    checkpoint_mnist = torch.load(os.path.join(dname, './checkpoint_mnist.pt'), map_location=torch.device('cpu'))
-    starting_epoch = checkpoint_mnist["epochs"]
-    losses = checkpoint_mnist["losses"]
-    epoch_timings = checkpoint_mnist["timings"]
-    D.load_state_dict(checkpoint_mnist["D"])
-    G.load_state_dict(checkpoint_mnist["G"])
+if os.path.exists(os.path.join(dname, './checkpoint_fashion.pt')):
+    checkpoint_fashion = torch.load(os.path.join(dname, './checkpoint_fashion.pt'), map_location=torch.device('cpu'))
+    starting_epoch = checkpoint_fashion["epochs"]
+    losses = checkpoint_fashion["losses"]
+    epoch_timings = checkpoint_fashion["timings"]
+    D.load_state_dict(checkpoint_fashion["D"])
+    G.load_state_dict(checkpoint_fashion["G"])
     print("checkpoint is loaded")
 
 D = D.cuda()
@@ -42,8 +42,8 @@ criterion_mse = nn.MSELoss()
 datapath = "./data/" # Path to save models
 eye10 = torch.eye(10).long().cuda()
 
-dataset = MNIST(datapath,download=True,transform=Compose([Resize(32), ToTensor(), Normalize([0.5],[0.5])]))
-testset = MNIST(datapath, train=False, transform=Compose([Resize(32), ToTensor(), Normalize([0.5],[0.5])]))
+dataset = FashionMNIST(datapath,download=True,transform=Compose([Resize(32), ToTensor(), Normalize([0.5],[0.5])]))
+testset = FashionMNIST(datapath, train=False, transform=Compose([Resize(32), ToTensor(), Normalize([0.5],[0.5])]))
 
 dataloader = DataLoader(dataset, 100, shuffle=True)
 testloader = DataLoader(testset, 100, shuffle=True)
@@ -119,7 +119,7 @@ for epoch in range(starting_epoch,100):
         loss.backward()
         optim_GAN.step()
 
-        if id % 100 == 0 and id != 0:
+        if id % 100 == 0:
             # current = losses[len(losses)-1]
             print("Epoch {}, batch: {} [{}] [{}] [{}]".format(epoch+1, id, current_loss["D loss"],current_loss["G loss"],current_loss["I loss"]))
             G.eval()
@@ -141,7 +141,7 @@ for epoch in range(starting_epoch,100):
                 else:
                     img = np.concatenate([img, row])
             plt.imshow(img, cmap="gray")
-            plt.savefig("c1/{}_{}".format(epoch, id))
+            plt.savefig("f1/{}_{}".format(epoch, id))
             img = []
             for i in range(10):
                 row = []
@@ -160,17 +160,17 @@ for epoch in range(starting_epoch,100):
                 else:
                     img = np.concatenate([img, row])
             plt.imshow(img, cmap="gray")
-            plt.savefig("c2/{}_{}".format(epoch, id))
+            plt.savefig("f2/{}_{}".format(epoch, id))
             G.train()
     epoch_end_time = time.time()
     epoch_duration = epoch_end_time - epoch_start_time
     epoch_timings.append(epoch_duration)
     losses.append([total_D_loss, total_G_loss, total_I_loss])
-    checkpoint_mnist = {
+    checkpoint_fashion = {
         "epochs": epoch + 1,
         "losses": losses,
         "D": D.state_dict(),
         "G": G.state_dict(),
         "timings": epoch_timings 
     }
-    torch.save(checkpoint_mnist, "checkpoint_mnist.pt")
+    torch.save(checkpoint_fashion, "checkpoint_fashion.pt")
