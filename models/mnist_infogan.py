@@ -8,19 +8,25 @@ class Generator(nn.Module):
         self.linear_layers = nn.Sequential(
             nn.Linear(74, 1024),
             nn.ReLU(inplace=True),
-            nn.BatchNorm1d(1),
-            nn.Linear(1024, 7*7*128),
-            nn.BatchNorm1d(1)
+            nn.BatchNorm1d(1024),
+            nn.Linear(1024, 8*8*128),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(8*8*128)
         )
         self.conv_layers = nn.Sequential(
+            nn.BatchNorm2d(128),
+            nn.ConvTranspose2d(128, 128, 4, stride=2, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ELU(inplace=True),
             nn.ConvTranspose2d(128, 64, 4, stride=2, padding=1),
             nn.BatchNorm2d(64),
-            nn.ConvTranspose2d(64, 1, 4, stride=2, padding=1),
-            nn.BatchNorm2d(1),
+            nn.ELU(inplace=True),
+            nn.Conv2d(64, 1, 3, stride=1, padding=1),
+            nn.Tanh(),
         )
     def forward(self, x):
         y = self.linear_layers(x)
-        y = y.view(y.shape[0], 128, 7, 7)
+        y = y.view(y.shape[0], 128, 8, 8)
         y = self.conv_layers(y)
         return y
 
@@ -30,23 +36,28 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         self.conv_layers = nn.Sequential(
-            nn.Conv2d(1, 64, kernel_size=4, stride=2),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2),
-            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(1, 16, kernel_size=3, stride=2, padding=1),
+            nn.LeakyReLU(),
+            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(32),
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(64),
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(128),
         )
-        self.fc = nn.Sequential(nn.Linear(128*5*5, 1024), nn.LeakyReLU(), nn.BatchNorm1d(1))
-        self.d_layer = nn.Linear(1024, 1)
-        self.q_discrete_layer = nn.Linear(1024, 10)
-        self.q_continues_layer = nn.Sequential(nn.Linear(1024, 2), nn.LeakyReLU(), nn.BatchNorm1d(1)) 
+        self.fc = nn.Sequential(nn.Linear(512, 1024), nn.LeakyReLU())
+        self.d_layer = nn.Sequential(nn.Linear(1024, 1), nn.Sigmoid())
+        self.q_discrete_layer = nn.Sequential(nn.Linear(1024, 10), nn.Softmax())
+        self.q_continues_layer = nn.Sequential(nn.Linear(1024, 2), nn.LeakyReLU()) 
     def forward(self, x):
         y = self.conv_layers(x)
-        y = y.view(x.shape[0], 1, -1)
+        y = y.view(x.shape[0], -1)
         y = self.fc(y)
         cat = self.q_discrete_layer(y)
         code = self.q_continues_layer(y)
-        valid = F.sigmoid(self.d_layer(y))
+        valid = self.d_layer(y)
         return valid, cat, code
 
 if __name__ == "__main__":
