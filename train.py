@@ -18,10 +18,12 @@ G = Generator()
 
 dname = os.path.dirname(__file__)
 
+# Initial values of checkpoint data items
 starting_epoch  = 0
 losses = []
 epoch_timings = []
-if os.path.exists("checkpoint_mnist.pt"):
+
+if os.path.exists(os.path.join(dname, './checkpoint_mnist.pt')):
     checkpoint_mnist = torch.load(os.path.join(dname, './checkpoint_mnist.pt'), map_location=torch.device('cpu'))
     starting_epoch = checkpoint_mnist["epochs"]
     losses = checkpoint_mnist["losses"]
@@ -37,7 +39,7 @@ criterion_ce = nn.CrossEntropyLoss()
 criterion_bce = nn.BCELoss()
 criterion_mse = nn.MSELoss()
 
-datapath = "./data/"
+datapath = "./data/" # Path to save models
 eye10 = torch.eye(10).long().cuda()
 
 dataset = MNIST(datapath,download=True,transform=Compose([Resize(32), ToTensor(), Normalize([0.5],[0.5])]))
@@ -50,80 +52,72 @@ optim_D = Adam(D.parameters(), lr= 0.0002, betas=(0.5, 0.999))
 optim_G = Adam(G.parameters(), lr= 0.0002, betas=(0.5, 0.999))
 optim_GAN = Adam(itertools.chain(G.parameters(), D.parameters()), lr= 0.0002, betas=(0.5, 0.999))
 
-def to_categorical(y, num_columns):
-    """Returns one-hot encoded Variable"""
-    y_cat = np.zeros((y.shape[0], num_columns))
-    y_cat[range(y.shape[0]), y] = 1.0
+def to_categorical(y, num_categories):
+    y_cat = torch.sparse.torch.eye(num_categories).index_select(index=y, dim=0)
+    return y_cat.float()
 
-    return (torch.FloatTensor(y_cat))
 for epoch in range(starting_epoch,100):
-    print(epoch)
+    
     epoch_start_time = time.time()
     total_D_loss = 0.
     total_G_loss = 0.
     total_I_loss = 0.
+    
     for id, (batch, label) in (enumerate(dataloader)):
         batch = batch.cuda()
         label = label.cuda()
-        # losses.append({})
+        
         current_loss = {}
 
         # Train discriminator
         optim_D.zero_grad()
         optim_G.zero_grad()
         valid, y_pred, code = D(batch)
-        y_pred = y_pred.reshape(y_pred.shape[0], -1)
         loss = criterion_bce(valid.flatten(), torch.ones(batch.shape[0]).cuda())
-        # loss +=  criterion_ce(y_pred, label)
 
         noise = torch.rand(batch.shape[0], 74).cuda()
         noise[:,62:72] = to_categorical(torch.randint(0, 10, size=(batch.shape[0],)), 10)
         noise[:,72:74] = torch.from_numpy(np.random.uniform(low=-1, high=1, size=(1,2))).cuda()
-        fake_batch = G(noise)#noise[:,0,:62], noise[:,0,62:72], noise[:,0,72:])
+        fake_batch = G(noise)
         valid, y_pred, code = D(fake_batch)
         loss += criterion_bce(valid.flatten(), torch.zeros(batch.shape[0]).cuda())
+        
         loss /= 2
         total_D_loss += loss.item()
-        # print("loss", loss.item())
         current_loss["D loss"] = loss.item()
         loss.backward()
         optim_D.step()
 
         # Train generator
-        for i in range(1):
-            optim_G.zero_grad()
-            optim_D.zero_grad()
-            noise = torch.rand(batch.shape[0], 74).cuda()
-            noise[:,62:72] = to_categorical(torch.randint(0, 10, size=(batch.shape[0],)), 10)
-            noise[:,72:74] = torch.from_numpy(np.random.uniform(low=-1, high=1, size=(1,2))).cuda()
-            fake_batch = G(noise)
-            valid, y_pred, code = D(fake_batch)
-            y_pred = y_pred.reshape(y_pred.shape[0], -1)
-            
-            # loss = criterion_mse(code, noise[:,None,0,72:])
-            loss = criterion_bce(valid.flatten(), torch.ones(batch.shape[0]).cuda())
-            # loss +=  criterion_ce(y_pred, torch.argmax(noise[:,62:72], dim=1))
-            # loss /= 2
-            loss.backward()
-            current_loss["G loss"] = loss.item()
-            total_G_loss += loss.item()
-            optim_G.step()
+        optim_G.zero_grad()
+        optim_D.zero_grad()
+        noise = torch.rand(batch.shape[0], 74).cuda()
+        noise[:,62:72] = to_categorical(torch.randint(0, 10, size=(batch.shape[0],)), 10)
+        noise[:,72:74] = torch.from_numpy(np.random.uniform(low=-1, high=1, size=(1,2))).cuda()
+        fake_batch = G(noise)
+        valid, y_pred, code = D(fake_batch)
+        y_pred = y_pred.reshape(y_pred.shape[0], -1)
+        
+        loss = criterion_bce(valid.flatten(), torch.ones(batch.shape[0]).cuda())
+        loss.backward()
+        current_loss["G loss"] = loss.item()
+        total_G_loss += loss.item()
+        optim_G.step()
 
-            # Train for maximizing entropy
-            optim_GAN.zero_grad()
-            noise = torch.rand(batch.shape[0], 74).cuda()
-            noise[:,72:74] = torch.from_numpy(np.random.uniform(low=-1, high=1, size=(batch.shape[0],2))).cuda()
-            fake_batch = G(noise)
-            valid, y_pred, code = D(fake_batch)
-            y_pred = y_pred.reshape(y_pred.shape[0], -1)
-            loss = 0.2 * criterion_mse(code, noise[:,72:])
-            loss +=  criterion_ce(y_pred, torch.argmax(noise[:,62:72], dim=1))
-            # loss /= 2
-            current_loss["I loss"] = loss.item()
-            total_I_loss += loss.item()
+        # Train for maximizing entropy
+        optim_GAN.zero_grad()
+        noise = torch.rand(batch.shape[0], 74).cuda()
+        noise[:,72:74] = torch.from_numpy(np.random.uniform(low=-1, high=1, size=(batch.shape[0],2))).cuda()
+        fake_batch = G(noise)
+        valid, y_pred, code = D(fake_batch)
+        y_pred = y_pred.reshape(y_pred.shape[0], -1)
+        loss = 0.2 * criterion_mse(code, noise[:,72:])
+        loss +=  criterion_ce(y_pred, torch.argmax(noise[:,62:72], dim=1))
+        current_loss["I loss"] = loss.item()
+        total_I_loss += loss.item()
 
-            loss.backward()
-            optim_GAN.step()
+        loss.backward()
+        optim_GAN.step()
 
         if id % 100 == 0 and id != 0:
             # current = losses[len(losses)-1]
@@ -168,10 +162,6 @@ for epoch in range(starting_epoch,100):
             plt.imshow(img, cmap="gray")
             plt.savefig("c2/{}_{}".format(epoch, id))
             G.train()
-        if id % 10 == 0 and id != 0:    
-            torch.save(G.state_dict(), "G.pt")
-            torch.save(D.state_dict(), "D.pt")
-            break
     epoch_end_time = time.time()
     epoch_duration = epoch_end_time - epoch_start_time
     epoch_timings.append(epoch_duration)
