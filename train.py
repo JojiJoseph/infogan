@@ -77,7 +77,7 @@ for epoch in range(starting_epoch,100):
 
         noise = torch.rand(batch.shape[0], 74).cuda()
         noise[:,62:72] = to_categorical(torch.randint(0, 10, size=(batch.shape[0],)), 10)
-        noise[:,72:74] = torch.from_numpy(np.random.uniform(low=-1, high=1, size=(1,2))).cuda()
+        noise[:,72:74] = torch.from_numpy(np.random.uniform(low=-1, high=1, size=(batch.shape[0],2))).cuda()
         fake_batch = G(noise)
         valid, y_pred, code = D(fake_batch)
         loss += criterion_bce(valid.flatten(), torch.zeros(batch.shape[0]).cuda())
@@ -93,7 +93,7 @@ for epoch in range(starting_epoch,100):
         optim_D.zero_grad()
         noise = torch.rand(batch.shape[0], 74).cuda()
         noise[:,62:72] = to_categorical(torch.randint(0, 10, size=(batch.shape[0],)), 10)
-        noise[:,72:74] = torch.from_numpy(np.random.uniform(low=-1, high=1, size=(1,2))).cuda()
+        noise[:,72:74] = torch.from_numpy(np.random.uniform(low=-1, high=1, size=(batch.shape[0],2))).cuda()
         fake_batch = G(noise)
         valid, y_pred, code = D(fake_batch)
         y_pred = y_pred.reshape(y_pred.shape[0], -1)
